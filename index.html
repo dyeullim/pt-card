@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PT 출석 카드</title>
+<meta name="description" content="PT를 받을 때마다 체크하고, 10회를 채우면 다음 수강료를 낼 차례라고 알려 주는 앱">
+<meta name="theme-color" content="#1D55C4">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/favicon-48.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="PT 카드">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one phone-width column. Counter + weight-plate stamps on top, the check button in thumb reach, records and settings below. */
+:root {
+  --bg: #EDF1F0;
+  --surface: #FFFFFF;
+  --ink: #142120;
+  --muted: #5A6967;
+  --line: #D5DCDA;
+  --empty: #E3E9E7;
+  --accent: #1D55C4;       /* 20kg plate blue */
+  --accent-ink: #FFFFFF;
+  --accent-soft: #E3EBFB;
+  --due: #C42633;          /* 25kg plate red */
+  --due-ink: #FFFFFF;
+  --due-soft: #FCE5E7;
+  --warn: #8F5400;
+  --warn-soft: #FFF0D2;
+  --ok: #1F7448;
+  --hub: rgba(255,255,255,.38);
+  --scrim: rgba(12,20,19,.48);
+  --toast-bg: #142120;
+  --toast-fg: #EDF1F0;
+  --toast-link: #9DB9F5;
+  --shadow: 0 1px 2px rgba(20,33,32,.06), 0 10px 28px rgba(20,33,32,.07);
+  --font-num: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --font-ui: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0E1514; --surface: #172120; --ink: #E7EEEC; --muted: #93A3A0; --line: #283433; --empty: #222D2C;
+    --accent: #6B98F2; --accent-ink: #0A1324; --accent-soft: #1C2A45;
+    --due: #FF6E78; --due-ink: #2A0A0E; --due-soft: #3A161A;
+    --warn: #F2B550; --warn-soft: #30250F; --ok: #52C98D;
+    --hub: rgba(0,0,0,.28); --scrim: rgba(0,0,0,.62);
+    --toast-bg: #E7EEEC; --toast-fg: #0E1514; --toast-link: #1D55C4;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 28px rgba(0,0,0,.25);
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-ui); font-size: 15px; line-height: 1.5;
+  padding-inline: max(16px, env(safe-area-inset-left, 0px));
+  padding-block: calc(20px + env(safe-area-inset-top, 0px)) calc(120px + env(safe-area-inset-bottom, 0px));
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+[hidden] { display: none !important; }
+.app { max-width: 460px; margin-inline: auto; display: flex; flex-direction: column; gap: 14px; }
+
+.top { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -.01em; text-wrap: balance; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--muted); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px;
+}
+.chip i { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+
+.banner { border-radius: 16px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.banner > div { min-width: 0; flex: 1 1 200px; }
+.banner strong { display: block; font-size: 15px; }
+.banner p { margin: 2px 0 0; font-size: 13px; color: var(--ink); opacity: .8; }
+.banner.due { background: var(--due-soft); color: var(--due); }
+.banner.warn { background: var(--warn-soft); color: var(--warn); }
+
+.card { background: var(--surface); border-radius: 22px; padding: 20px; box-shadow: var(--shadow); }
+.pkg { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 12px; font-weight: 600; letter-spacing: .05em; color: var(--muted); }
+.count { display: flex; align-items: flex-end; gap: 6px; margin-top: 6px; }
+.count .n { font-family: var(--font-num); font-weight: 800; font-size: 92px; line-height: .86; font-variant-numeric: tabular-nums; }
+.count .n.over { color: var(--due); }
+.count .g { font-family: var(--font-num); font-weight: 600; font-size: 36px; line-height: 1; color: var(--muted); padding-bottom: 4px; }
+.count .left { margin-left: auto; text-align: right; font-size: 13px; color: var(--muted); padding-bottom: 4px; }
+.count .left b { display: block; font-family: var(--font-num); font-weight: 700; font-size: 30px; line-height: 1; color: var(--ink); font-variant-numeric: tabular-nums; }
+.count .left b.due { color: var(--due); }
+
+.plates { list-style: none; margin: 20px 0 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px 10px; }
+.plate { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.disc {
+  width: 100%; max-width: 58px; aspect-ratio: 1; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--empty); color: var(--muted);
+  font-family: var(--font-num); font-weight: 700; font-size: 19px;
+}
+.plate.last .disc { background: transparent; border: 2px dashed var(--due); color: var(--due); }
+.plate.on .disc { background: var(--accent); color: var(--accent-ink); box-shadow: inset 0 0 0 5px var(--accent), inset 0 0 0 7px var(--hub); }
+.plate.on.last .disc { background: var(--due); border: 0; color: var(--due-ink); box-shadow: inset 0 0 0 5px var(--due), inset 0 0 0 7px var(--hub); }
+.plate small { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; min-height: 16px; }
+.plate.last:not(.on) small { color: var(--due); font-weight: 600; }
+.plate.pop .disc { animation: pop .38s ease-out; }
+@keyframes pop { 0% { transform: scale(.55); } 70% { transform: scale(1.08); } 100% { transform: scale(1); } }
+.overflow { margin: 14px 0 0; font-size: 13px; color: var(--due); font-weight: 600; }
+
+.btn { font: inherit; border: 0; border-radius: 14px; padding: 13px 18px; font-weight: 600; cursor: pointer; }
+.btn:focus-visible, .linkbtn:focus-visible, .del:focus-visible, .stepper button:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.btn-primary {
+  width: 100%; margin-top: 20px; padding: 17px 18px;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  background: var(--accent); color: var(--accent-ink); font-size: 17px;
+}
+.btn-primary small { font-size: 12px; font-weight: 400; opacity: .85; }
+.btn-primary.done { background: var(--accent-soft); color: var(--accent); }
+.btn-primary:active { transform: translateY(1px); }
+.btn-due { background: var(--due); color: var(--due-ink); }
+.btn-sec { background: var(--accent-soft); color: var(--accent); }
+.wide { width: 100%; }
+.linkbtn { font: inherit; font-size: 14px; background: none; border: 0; color: var(--accent); cursor: pointer; padding: 10px 4px 0; }
+.subrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+.subrow input[type="date"] { flex: 1 1 160px; min-width: 0; }
+.dup { margin-top: 12px; padding: 12px 14px; border-radius: 14px; background: var(--accent-soft); font-size: 14px; display: flex; flex-direction: column; gap: 10px; }
+.dup .subrow { margin-top: 0; }
+
+input[type="date"] {
+  font: inherit; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px;
+}
+
+.section h2 { margin: 6px 0 8px; font-size: 13px; font-weight: 600; letter-spacing: .04em; color: var(--muted); }
+.rows { list-style: none; margin: 0; padding: 0; background: var(--surface); border-radius: 18px; overflow: hidden; box-shadow: var(--shadow); }
+.rows li { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--line); }
+.rows li:first-child { border-top: 0; }
+.rows .no { font-family: var(--font-num); font-weight: 700; font-size: 19px; width: 54px; flex: none; font-variant-numeric: tabular-nums; }
+.rows .when { flex: 1; min-width: 0; }
+.rows .when small { display: block; font-size: 12px; color: var(--muted); }
+.rows .tag { font-size: 11px; font-weight: 600; color: var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 1px 6px; margin-left: 6px; }
+.del { font: inherit; font-size: 13px; color: var(--muted); background: none; border: 1px solid var(--line); border-radius: 9px; padding: 4px 10px; cursor: pointer; flex: none; }
+.empty-row { color: var(--muted); font-size: 14px; }
+
+.settings { background: var(--surface); border-radius: 18px; box-shadow: var(--shadow); }
+.settings summary { cursor: pointer; padding: 14px 16px; font-weight: 600; font-size: 14px; list-style: none; display: flex; justify-content: space-between; }
+.settings summary::-webkit-details-marker { display: none; }
+.settings summary::after { content: "열기"; font-weight: 400; color: var(--muted); font-size: 13px; }
+.settings[open] summary::after { content: "닫기"; }
+.settings .inner { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 14px; }
+.set-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.set-row > div:first-child { min-width: 0; flex: 1 1 160px; }
+.set-row b { font-size: 15px; font-weight: 600; }
+.set-row p { margin: 1px 0 0; font-size: 13px; color: var(--muted); }
+.set-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.stepper { display: flex; align-items: center; gap: 6px; }
+.stepper button { width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 20px; line-height: 1; cursor: pointer; }
+.stepper button:disabled { opacity: .35; cursor: default; }
+.stepper output { min-width: 58px; text-align: center; font-family: var(--font-num); font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stepper output span { font-family: var(--font-ui); font-size: 13px; font-weight: 500; color: var(--muted); margin-left: 2px; }
+.confirm { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 14px; }
+
+.onboard h2 { margin: 4px 0 6px; font-size: 22px; line-height: 1.3; text-wrap: balance; }
+.onboard .lead { margin: 0 0 18px; color: var(--muted); font-size: 14px; }
+.onboard .set-row + .set-row { margin-top: 14px; }
+.eyebrow { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .06em; color: var(--accent); }
+
+.note { font-size: 12px; color: var(--muted); margin: 4px 2px 0; }
+
+.overlay { position: fixed; inset: 0; z-index: 20; background: var(--scrim); display: grid; place-items: center; padding: 16px; }
+.sheet { width: 100%; max-width: 420px; max-height: 100%; overflow: auto; background: var(--surface); border-radius: 24px; padding: 24px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 10px; }
+.sheet .big { font-family: var(--font-num); font-weight: 800; font-size: 64px; line-height: .9; color: var(--due); font-variant-numeric: tabular-nums; }
+.sheet h3 { margin: 4px 0 0; font-size: 21px; line-height: 1.3; text-wrap: balance; }
+.sheet p { margin: 0 0 8px; color: var(--muted); font-size: 14px; }
+.sheet .ring { animation: ring .9s ease-in-out 2; transform-origin: 50% 0; display: inline-block; }
+@keyframes ring { 0%,100% { transform: rotate(0); } 20% { transform: rotate(14deg); } 40% { transform: rotate(-12deg); } 60% { transform: rotate(8deg); } 80% { transform: rotate(-4deg); } }
+
+.toast {
+  position: fixed; z-index: 30; left: 50%; transform: translateX(-50%);
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  width: max-content; max-width: calc(100% - 32px);
+  display: flex; align-items: center; gap: 10px;
+  background: var(--toast-bg); color: var(--toast-fg);
+  border-radius: 14px; padding: 10px 10px 10px 16px; font-size: 14px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.2);
+}
+.toast button { font: inherit; font-weight: 600; background: none; border: 0; color: var(--toast-link); cursor: pointer; padding: 4px 8px; flex: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .plate.pop .disc, .sheet .ring { animation: none; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <h1>PT 출석 카드</h1>
+    <span class="chip"><i></i><span>이 휴대폰에 저장</span></span>
+  </header>
+  <div id="main" class="app" style="max-width:none"></div>
+</div>
+<div id="modal-root"></div>
+<div id="toast-root"></div>
+<input type="file" id="import-file" accept=".json,application/json" hidden>
+
+<script>
+(function () {
+  "use strict";
+  var LS_KEY = "pt-card-v1";
+  var LS_BACKUP = "pt-card-last-backup";
+  var WD = ["일", "월", "화", "수", "목", "금", "토"];
+
+  var app = {
+    state: null,          // null = not set up yet
+    ui: {
+      datePicker: false, pickDate: todayStr(), dup: null, modal: false,
+      resetAsk: false, popId: null, settingsOpen: false,
+      ob: { goal: 10, done: 0 }
+    }
+  };
+  var toastTimer = null;
+
+  // ---------- helpers ----------
+  function todayStr() {
+    var d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function parts(s) { var p = s.split("-").map(Number); return { y: p[0], m: p[1], d: p[2], wd: new Date(p[0], p[1] - 1, p[2]).getDay() }; }
+  function shortDate(s) { if (!s) return "이전"; var p = parts(s); return p.m + "/" + p.d; }
+  function longDate(s) { if (!s) return "앱 사용 전 기록"; var p = parts(s); return p.m + "월 " + p.d + "일 (" + WD[p.wd] + ")"; }
+  function daysSince(s) { if (!s) return null; var p = parts(s), t = parts(todayStr()); return Math.round((new Date(t.y, t.m - 1, t.d) - new Date(p.y, p.m - 1, p.d)) / 864e5); }
+  function sortS(a) {
+    return a.slice().sort(function (x, y) {
+      var dx = x.date || "", dy = y.date || "";
+      if (dx !== dy) return dx < dy ? -1 : 1;
+      return (x.at || "") < (y.at || "") ? -1 : 1;
+    });
+  }
+  function okDate(d) { return typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null; }
+  function normSessions(a) {
+    return sortS((Array.isArray(a) ? a : []).filter(function (s) { return s && typeof s === "object"; }).map(function (s) {
+      return { id: String(s.id || uid()).slice(0, 40), date: okDate(s.date), at: typeof s.at === "string" ? s.at : "" };
+    }));
+  }
+  function normalize(raw) {
+    if (!raw || typeof raw !== "object" || !Array.isArray(raw.current)) return null;
+    var goal = Math.min(100, Math.max(1, parseInt(raw.goal, 10) || 10));
+    var hist = (Array.isArray(raw.history) ? raw.history : []).filter(function (h) { return h && typeof h === "object"; }).map(function (h) {
+      return { paidOn: okDate(h.paidOn), goal: Math.max(1, parseInt(h.goal, 10) || goal), sessions: normSessions(h.sessions) };
+    });
+    return { v: 1, goal: goal, current: normSessions(raw.current), history: hist };
+  }
+
+  // ---------- storage (this phone only) ----------
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); return true; } catch (e) { return false; } }
+  function loadState() { try { return normalize(JSON.parse(lsGet(LS_KEY) || "null")); } catch (e) { return null; } }
+  function persist() {
+    if (!lsSet(LS_KEY, app.state ? JSON.stringify(app.state) : null)) toast("저장하지 못했어요. 브라우저의 사이트 데이터 저장이 꺼져 있는지 확인해 주세요.");
+  }
+
+  function commit(next, msg) {
+    var prev = app.state ? clone(app.state) : null;
+    app.state = next;
+    render();
+    persist();
+    if (msg) toast(msg, function () {
+      app.state = prev; app.ui.modal = false; app.ui.popId = null;
+      render(); persist(); toast("되돌렸어요");
+    });
+  }
+
+  // ---------- backup ----------
+  function exportBackup() {
+    if (!app.state) return;
+    var body = JSON.stringify({ app: "pt-card", exportedAt: new Date().toISOString(), state: app.state }, null, 2);
+    var name = "PT출석카드-백업-" + todayStr() + ".json";
+    var blob = new Blob([body], { type: "application/json" });
+    var file = null;
+    try { file = new File([blob], name, { type: "application/json" }); } catch (e) {}
+    // 휴대폰이면 공유 메뉴(카톡, 메일, 드라이브)로, 안 되면 다운로드 폴더로
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: "PT 출석 카드 백업" }).then(function () {
+        lsSet(LS_BACKUP, todayStr()); render(); toast("백업 파일을 보냈어요");
+      }).catch(function (e) { if (!e || e.name !== "AbortError") download(blob, name); });
+      return;
+    }
+    download(blob, name);
+  }
+  function download(blob, name) {
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+    lsSet(LS_BACKUP, todayStr()); render();
+    toast("백업 파일을 다운로드 폴더에 저장했어요");
+  }
+  function importBackup(file) {
+    var r = new FileReader();
+    r.onload = function () {
+      var s = null;
+      try { var obj = JSON.parse(r.result); s = normalize(obj && obj.state ? obj.state : obj); } catch (e) {}
+      if (!s) { toast("PT 출석 카드 백업 파일이 아니에요. 파일을 다시 골라 주세요."); return; }
+      app.ui.modal = false; app.ui.settingsOpen = false;
+      commit(s, "백업을 불러왔어요 · 지금 " + s.current.length + "/" + s.goal + "회");
+    };
+    r.onerror = function () { toast("파일을 읽지 못했어요. 다시 시도해 주세요."); };
+    r.readAsText(file);
+  }
+
+  // ---------- alarm ----------
+  function chime() {
+    try {
+      var A = window.AudioContext || window.webkitAudioContext; if (!A) return;
+      var ctx = new A(), t = ctx.currentTime;
+      [[784, 0], [988, .16], [1319, .32], [1319, .62]].forEach(function (n) {
+        var o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = "triangle"; o.frequency.value = n[0];
+        g.gain.setValueAtTime(0.0001, t + n[1]);
+        g.gain.exponentialRampToValueAtTime(0.3, t + n[1] + .02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + n[1] + .45);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(t + n[1]); o.stop(t + n[1] + .5);
+      });
+      setTimeout(function () { try { ctx.close(); } catch (e) {} }, 1600);
+    } catch (e) {}
+  }
+  function buzz() { try { if (navigator.vibrate) navigator.vibrate([220, 120, 220, 120, 400]); } catch (e) {} }
+
+  // ---------- actions ----------
+  function hasDate(d) { return app.state.current.some(function (s) { return s.date === d; }); }
+
+  function addSession(date, force) {
+    if (!force && hasDate(date)) { app.ui.dup = date; render(); return; }
+    var s = clone(app.state), id = uid();
+    s.current.push({ id: id, date: date, at: new Date().toISOString() });
+    s.current = sortS(s.current);
+    var idx = s.current.findIndex(function (x) { return x.id === id; }) + 1;
+    app.ui.popId = id; app.ui.dup = null; app.ui.datePicker = false;
+    if (s.current.length >= s.goal) { app.ui.modal = true; chime(); buzz(); }
+    commit(s, idx + "회차 체크했어요" + (date !== todayStr() ? " · " + longDate(date) : ""));
+  }
+
+  function removeSession(id) {
+    var s = clone(app.state);
+    var i = s.current.findIndex(function (x) { return x.id === id; });
+    if (i < 0) return;
+    s.current.splice(i, 1);
+    app.ui.popId = null;
+    commit(s, (i + 1) + "회차 기록을 지웠어요");
+  }
+
+  function pay() {
+    var s = clone(app.state);
+    var done = s.current.slice(0, s.goal), rest = s.current.slice(s.goal);
+    s.history.unshift({ paidOn: todayStr(), goal: s.goal, sessions: done });
+    s.current = rest;
+    app.ui.modal = false; app.ui.popId = null;
+    commit(s, "납부 완료로 기록했어요 · " + (s.history.length + 1) + "번째 패키지 시작");
+  }
+
+  function setGoal(n) {
+    n = Math.min(100, Math.max(1, n));
+    if (n === app.state.goal) return;
+    var s = clone(app.state); s.goal = n;
+    commit(s, "패키지를 " + n + "회로 바꿨어요");
+  }
+
+  function start() {
+    var g = app.ui.ob.goal, d = Math.min(app.ui.ob.done, g), now = new Date().toISOString(), cur = [];
+    for (var i = 0; i < d; i++) cur.push({ id: uid(), date: null, at: now + "-" + String(i).padStart(3, "0") });
+    if (d >= g) app.ui.modal = true;
+    commit({ v: 1, goal: g, current: cur, history: [] }, null);
+    requestPersist();
+  }
+
+  function resetAll() {
+    app.ui.resetAsk = false; app.ui.settingsOpen = false; app.ui.modal = false;
+    commit(null, "모든 기록을 지웠어요");
+  }
+
+  // 브라우저가 공간이 부족할 때 기록을 지우지 않도록 요청
+  function requestPersist() {
+    try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+  }
+
+  // ---------- toast ----------
+  function toast(msg, undo) {
+    var root = document.getElementById("toast-root");
+    clearTimeout(toastTimer);
+    root.innerHTML = '<div class="toast" role="status"><span>' + esc(msg) + "</span>" + (undo ? '<button type="button" id="toast-undo">되돌리기</button>' : "") + "</div>";
+    if (undo) document.getElementById("toast-undo").onclick = function () { root.innerHTML = ""; undo(); };
+    toastTimer = setTimeout(function () { root.innerHTML = ""; }, undo ? 6000 : 2800);
+  }
+
+  // ---------- render ----------
+  function stepper(prefix, value, unit, min, max) {
+    return '<div class="stepper">' +
+      '<button type="button" id="' + prefix + '-dec" data-act="' + prefix + '-dec" aria-label="줄이기"' + (value <= min ? " disabled" : "") + ">−</button>" +
+      "<output>" + value + "<span>" + unit + "</span></output>" +
+      '<button type="button" id="' + prefix + '-inc" data-act="' + prefix + '-inc" aria-label="늘리기"' + (value >= max ? " disabled" : "") + ">+</button>" +
+      "</div>";
+  }
+
+  function viewOnboard() {
+    var ob = app.ui.ob;
+    return '<section class="card onboard">' +
+      '<p class="eyebrow">처음 설정</p>' +
+      "<h2>PT 횟수는 이제 여기서 세요</h2>" +
+      '<p class="lead">수업을 받을 때마다 체크하면, 정해진 횟수를 채우는 순간 다음 수강료를 낼 차례라고 알려 드려요.</p>' +
+      '<div class="set-row"><div><b>패키지 횟수</b><p>수강료 한 번에 받는 횟수</p></div>' + stepper("ob-goal", ob.goal, "회", 1, 100) + "</div>" +
+      '<div class="set-row"><div><b>이미 받은 횟수</b><p>이번 패키지에서 지금까지 받은 수업</p></div>' + stepper("ob-done", ob.done, "회", 0, ob.goal) + "</div>" +
+      '<button type="button" class="btn btn-primary" id="start" data-act="start">시작하기<small>' + ob.goal + "회 중 " + ob.done + "회부터 세기</small></button>" +
+      '<button type="button" class="linkbtn" id="import-ob" data-act="import">백업 파일이 있나요? 불러오기</button>' +
+      "</section>";
+  }
+
+  function viewMain() {
+    var s = app.state, cur = s.current, n = cur.length, g = s.goal, today = todayStr();
+    var pkgNo = s.history.length + 1, html = "";
+
+    if (n >= g) {
+      html += '<div class="banner due" role="alert"><div><strong>수강료 납부할 차례예요</strong><p>' + g + "회를 모두 받았어요" +
+        (n > g ? " · 납부 전 " + (n - g) + "회 더 받음" : "") + '. 트레이너에게 다음 수강료를 내세요.</p></div>' +
+        '<button type="button" class="btn btn-due" id="pay-banner" data-act="pay">납부 완료</button></div>';
+    } else if (g > 1 && n === g - 1) {
+      html += '<div class="banner warn"><div><strong>다음 수업이 마지막 ' + g + "회차예요</strong><p>그 수업이 끝나면 다음 수강료를 내야 해요. 미리 준비해 두세요.</p></div></div>";
+    }
+
+    // counter card
+    var plates = "";
+    for (var i = 0; i < g; i++) {
+      var ss = cur[i], last = i === g - 1;
+      plates += '<li class="plate' + (ss ? " on" : "") + (last ? " last" : "") + (ss && ss.id === app.ui.popId ? " pop" : "") + '">' +
+        '<span class="disc" aria-label="' + (i + 1) + "회차 " + (ss ? "완료" : "남음") + '">' + (i + 1) + "</span>" +
+        "<small>" + (ss ? esc(shortDate(ss.date)) : last ? "납부" : "") + "</small></li>";
+    }
+    var leftHtml = n < g
+      ? "<b>" + (g - n) + "회</b>남음"
+      : n === g ? '<b class="due">완료</b>납부할 차례' : '<b class="due">+' + (n - g) + "회</b>초과";
+    var checkedToday = hasDate(today);
+
+    html += '<section class="card">' +
+      '<div class="pkg"><span>' + pkgNo + "번째 패키지 · " + g + "회권</span><span>" + esc(longDate(today)) + "</span></div>" +
+      '<div class="count"><span class="n' + (n > g ? " over" : "") + '">' + n + '</span><span class="g">/' + g + '</span><span class="left">' + leftHtml + "</span></div>" +
+      '<ul class="plates">' + plates + "</ul>" +
+      (n > g ? '<p class="overflow">' + g + "회를 넘겨 " + (n - g) + "회 더 받았어요. 납부 완료를 누르면 다음 패키지 기록으로 넘어가요.</p>" : "");
+
+    if (app.ui.dup) {
+      html += '<div class="dup" role="alert"><span>' + esc(longDate(app.ui.dup)) + "은 이미 체크돼 있어요. 같은 날 한 번 더 받았나요?</span>" +
+        '<div class="subrow"><button type="button" class="btn btn-sec" id="dup-yes" data-act="dup-yes">한 번 더 추가</button>' +
+        '<button type="button" class="linkbtn" style="padding-top:0" id="dup-no" data-act="dup-no">취소</button></div></div>';
+    } else {
+      html += '<button type="button" class="btn btn-primary' + (checkedToday ? " done" : "") + '" id="check-today" data-act="check-today">' +
+        (checkedToday ? "오늘 PT 체크 완료<small>한 번 더 받았다면 눌러서 추가</small>" : "오늘 PT 받았어요<small>" + (n + 1) + "회차로 기록돼요</small>") + "</button>";
+    }
+
+    if (app.ui.datePicker) {
+      html += '<div class="subrow"><label for="pick-date" class="note" style="margin:0;width:100%">수업 받은 날짜</label>' +
+        '<input type="date" id="pick-date" max="' + today + '" value="' + esc(app.ui.pickDate) + '">' +
+        '<button type="button" class="btn btn-sec" id="check-date" data-act="check-date">이 날짜로 체크</button></div>';
+    }
+    html += '<button type="button" class="linkbtn" id="toggle-date" data-act="toggle-date">' + (app.ui.datePicker ? "날짜 선택 닫기" : "체크를 깜빡했나요? 다른 날짜로 체크") + "</button>";
+    html += "</section>";
+
+    // current package records
+    html += '<section class="section"><h2>이번 패키지 기록</h2>';
+    if (!n) {
+      html += '<ul class="rows"><li class="empty-row">아직 기록이 없어요. 수업이 끝나면 위 버튼을 눌러 주세요.</li></ul>';
+    } else {
+      html += '<ul class="rows">';
+      for (var j = n - 1; j >= 0; j--) {
+        var r = cur[j];
+        html += '<li><span class="no">' + (j + 1) + "회차</span>" +
+          '<span class="when">' + esc(longDate(r.date)) + (r.date === today ? '<span class="tag">오늘</span>' : "") +
+          (j >= g ? "<small>납부 후 다음 패키지로 넘어가요</small>" : "") + "</span>" +
+          '<button type="button" class="del" id="del-' + esc(r.id) + '" data-act="del" data-id="' + esc(r.id) + '" aria-label="' + (j + 1) + '회차 기록 지우기">지우기</button></li>';
+      }
+      html += "</ul>";
+    }
+    html += "</section>";
+
+    // history
+    if (s.history.length) {
+      html += '<section class="section"><h2>지난 패키지</h2><ul class="rows">';
+      s.history.forEach(function (h, k) {
+        var no = s.history.length - k;
+        var dated = h.sessions.filter(function (x) { return x.date; });
+        var range = dated.length ? shortDate(dated[0].date) + " – " + shortDate(dated[dated.length - 1].date) : "앱 사용 전 기록";
+        html += '<li><span class="no">' + no + "번째</span>" +
+          '<span class="when">' + h.sessions.length + "회 · " + esc(range) +
+          "<small>" + (h.paidOn ? esc(longDate(h.paidOn)) + " 다음 수강료 납부" : "") + "</small></span></li>";
+      });
+      html += "</ul></section>";
+    }
+
+    // settings
+    var lb = lsGet(LS_BACKUP), ago = daysSince(lb);
+    var backupNote = lb ? "마지막 백업: " + (ago === 0 ? "오늘" : ago + "일 전") : "아직 백업한 적이 없어요";
+    html += '<details class="settings" id="settings"' + (app.ui.settingsOpen ? " open" : "") + "><summary>설정 · 백업</summary><div class=\"inner\">" +
+      '<div class="set-row"><div><b>패키지 횟수</b><p>몇 회마다 수강료를 내나요?</p></div>' + stepper("goal", g, "회", 1, 100) + "</div>" +
+      '<div class="set-row"><div><b>백업</b><p>휴대폰을 바꾸거나 브라우저 기록을 지우기 전에 백업해 두세요. ' + esc(backupNote) + "</p></div>" +
+      '<div class="set-btns"><button type="button" class="btn btn-sec" id="export" data-act="export">백업 파일 저장</button>' +
+      '<button type="button" class="del" id="import" data-act="import">불러오기</button></div></div>' +
+      '<div class="set-row"><div><b>모든 기록 지우기</b><p>처음 설정부터 다시 시작해요.</p></div>' +
+      (app.ui.resetAsk
+        ? '<div class="confirm"><button type="button" class="btn btn-due" id="reset-yes" data-act="reset-yes">전부 지우기</button><button type="button" class="linkbtn" style="padding-top:0" id="reset-no" data-act="reset-no">취소</button></div>'
+        : '<button type="button" class="del" id="reset-ask" data-act="reset-ask">지우기</button>') +
+      "</div></div></details>";
+
+    html += '<p class="note">기록은 이 휴대폰 브라우저 안에만 저장돼요. 인터넷이 없어도 열리고, 다른 서비스에 가입하지 않아도 계속 쓸 수 있어요.</p>';
+    return html;
+  }
+
+  function renderModal() {
+    var root = document.getElementById("modal-root");
+    if (!app.ui.modal || !app.state) { root.innerHTML = ""; return; }
+    var n = app.state.current.length, g = app.state.goal;
+    root.innerHTML = '<div class="overlay" role="alertdialog" aria-modal="true" aria-labelledby="m-title"><div class="sheet">' +
+      '<div class="big"><span class="ring">' + n + "/" + g + "</span></div>" +
+      '<h3 id="m-title">' + g + "회를 모두 받았어요. 다음 수강료를 낼 차례예요</h3>" +
+      "<p>트레이너에게 다음 패키지 수강료를 납부하세요. 납부했다면 아래 버튼을 눌러 새 " + g + "회를 시작해요.</p>" +
+      '<button type="button" class="btn btn-due wide" id="pay-modal" data-act="pay">납부 완료 · 새 ' + g + "회 시작</button>" +
+      '<button type="button" class="btn wide" style="background:none;color:var(--muted)" id="later" data-act="later">아직 안 냈어요</button>' +
+      "</div></div>";
+    var b = document.getElementById("pay-modal"); if (b) b.focus();
+  }
+
+  function render() {
+    var focusId = document.activeElement && document.activeElement.id;
+    document.getElementById("main").innerHTML = app.state ? viewMain() : viewOnboard();
+    var hadModal = !!document.querySelector(".overlay");
+    if (!hadModal || !app.ui.modal) renderModal();
+    if (focusId && !app.ui.modal) { var el = document.getElementById(focusId); if (el) el.focus(); }
+  }
+
+  // ---------- events ----------
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-act]"); if (!b || b.disabled) return;
+    var act = b.getAttribute("data-act"), ob = app.ui.ob;
+    switch (act) {
+      case "ob-goal-dec": ob.goal = Math.max(1, ob.goal - 1); ob.done = Math.min(ob.done, ob.goal); render(); break;
+      case "ob-goal-inc": ob.goal = Math.min(100, ob.goal + 1); render(); break;
+      case "ob-done-dec": ob.done = Math.max(0, ob.done - 1); render(); break;
+      case "ob-done-inc": ob.done = Math.min(ob.goal, ob.done + 1); render(); break;
+      case "start": start(); break;
+      case "check-today": addSession(todayStr(), false); break;
+      case "toggle-date": app.ui.datePicker = !app.ui.datePicker; app.ui.dup = null; render(); break;
+      case "check-date":
+        var v = okDate(app.ui.pickDate);
+        if (!v || v > todayStr()) { toast("수업 받은 날짜를 오늘이나 그 이전으로 골라 주세요"); break; }
+        addSession(v, false); break;
+      case "dup-yes": addSession(app.ui.dup, true); break;
+      case "dup-no": app.ui.dup = null; render(); break;
+      case "del": removeSession(b.getAttribute("data-id")); break;
+      case "pay": pay(); break;
+      case "later": app.ui.modal = false; render(); toast("납부하면 위쪽 빨간 배너에서 ‘납부 완료’를 눌러 주세요"); break;
+      case "goal-dec": setGoal(app.state.goal - 1); break;
+      case "goal-inc": setGoal(app.state.goal + 1); break;
+      case "export": exportBackup(); break;
+      case "import": document.getElementById("import-file").click(); break;
+      case "reset-ask": app.ui.resetAsk = true; render(); break;
+      case "reset-no": app.ui.resetAsk = false; render(); break;
+      case "reset-yes": resetAll(); break;
+    }
+  });
+  document.getElementById("import-file").addEventListener("change", function (e) {
+    var f = e.target.files && e.target.files[0];
+    if (f) importBackup(f);
+    e.target.value = "";
+  });
+  document.addEventListener("input", function (e) {
+    if (e.target && e.target.id === "pick-date") app.ui.pickDate = e.target.value;
+  });
+  document.addEventListener("toggle", function (e) {
+    if (e.target && e.target.id === "settings") app.ui.settingsOpen = e.target.open;
+  }, true);
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && app.ui.modal) { app.ui.modal = false; render(); }
+  });
+  // 다른 탭에서 바꾼 기록 반영
+  window.addEventListener("storage", function (e) {
+    if (e.key === LS_KEY) { app.state = loadState(); render(); }
+  });
+  // 자정을 넘겨 다시 열었을 때 '오늘' 갱신
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden) { app.state = loadState(); render(); }
+  });
+
+  // ---------- boot ----------
+  app.state = loadState();
+  render();
+  if (app.state) requestPersist();
+  if ("serviceWorker" in navigator && location.protocol === "https:") {
+    window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
+  }
+})();
+</script>
+</body>
+</html>
